@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hallway – chat with people at school</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --board: #1e3b33;
+    --board-2: #2a4d42;
+    --chalk: #f1efe6;
+    --chalk-dim: #b9c7c0;
+    --paper: #eaeef2;
+    --surface: #ffffff;
+    --ink: #17211e;
+    --muted: #5b6763;
+    --line: #d5dce1;
+    --hl: #f7dc4a;
+    --hl-ink: #2b2500;
+    --danger: #b3372b;
+    --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+    --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.45;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  [hidden] { display: none !important; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid #3a7bd5; outline-offset: 2px; }
+
+  /* ---------- Sign in / sign up ---------- */
+  #auth-screen {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  .board {
+    background: var(--board);
+    color: var(--chalk);
+    padding: clamp(28px, 6vw, 80px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+  }
+  .board::after {
+    content: "";
+    position: absolute;
+    inset: 18px;
+    border: 2px solid rgba(241, 239, 230, .22);
+    border-radius: 6px;
+    pointer-events: none;
+  }
+  .wordmark {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(3.4rem, 9vw, 7.5rem);
+    line-height: .95;
+    letter-spacing: -0.035em;
+    margin: 0;
+  }
+  .squiggle { width: min(320px, 70%); height: 18px; margin: 10px 0 22px; display: block; }
+  .board p {
+    max-width: 30ch;
+    font-size: clamp(1.05rem, 2vw, 1.3rem);
+    color: var(--chalk-dim);
+    margin: 0;
+  }
+  .auth-side { display: grid; place-items: center; padding: 28px 20px; }
+  .auth-card {
+    width: min(100%, 380px);
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 1px 0 var(--line), 0 12px 30px -18px rgba(23, 33, 30, .35);
+  }
+  .auth-card h2 { font-family: var(--display); font-size: 1.7rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .auth-card .sub { margin: 0 0 20px; color: var(--muted); font-size: .95rem; }
+  label { display: block; font-weight: 600; font-size: .92rem; margin: 14px 0 6px; }
+  input[type=text], input[type=password] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    font-size: 16px;
+  }
+  input[type=text]:focus, input[type=password]:focus { border-color: var(--board); outline: none; box-shadow: 0 0 0 3px rgba(30, 59, 51, .18); }
+  .hint { font-size: .85rem; color: var(--muted); margin: 6px 0 0; }
+  .btn-primary {
+    width: 100%;
+    margin-top: 20px;
+    padding: 13px 16px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--board);
+    color: var(--chalk);
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .btn-primary:hover { background: var(--board-2); }
+  .btn-primary:disabled { opacity: .55; cursor: default; }
+  .linkish { background: none; border: 0; padding: 0; color: var(--board); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  .switch { margin: 18px 0 0; text-align: center; font-size: .95rem; color: var(--muted); }
+  .error { color: var(--danger); font-size: .92rem; font-weight: 600; margin: 14px 0 0; min-height: 1.2em; }
+  .setup-banner {
+    background: #fff4c7;
+    border: 1.5px solid #e3c94a;
+    color: #4a3d00;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    font-size: .92rem;
+  }
+
+  /* ---------- Chat app ---------- */
+  #app {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    height: 100vh;
+    height: 100dvh;
+  }
+  .sidebar {
+    background: var(--board);
+    color: var(--chalk);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .side-head { padding: 20px 20px 8px; }
+  .side-head .wordmark { font-size: 2rem; letter-spacing: -0.03em; }
+  .side-scroll { flex: 1; overflow-y: auto; padding: 8px 12px 12px; }
+  .side-title { font-weight: 600; font-size: .85rem; color: var(--chalk-dim); margin: 18px 8px 6px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--chalk);
+    position: relative;
+  }
+  .nav-item:hover { background: rgba(241, 239, 230, .08); }
+  .nav-item.active { background: rgba(241, 239, 230, .14); font-weight: 700; }
+  .nav-item.active::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 4px; border-radius: 4px; background: var(--hl); }
+  .nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--hl); flex: none; }
+  .side-empty { color: var(--chalk-dim); font-size: .9rem; margin: 4px 12px 0; }
+  .new-dm {
+    margin-top: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px dashed rgba(241, 239, 230, .4);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--chalk);
+    font-weight: 600;
+  }
+  .new-dm:hover { background: rgba(241, 239, 230, .08); }
+  .side-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(241, 239, 230, .16); }
+  .me { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .signout { background: none; border: 1.5px solid rgba(241, 239, 230, .35); border-radius: 8px; color: var(--chalk); padding: 6px 12px; font-weight: 600; }
+  .signout:hover { background: rgba(241, 239, 230, .1); }
+
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--paper); }
+  .chat-head { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .chat-head h2 { font-family: var(--display); font-size: 1.35rem; margin: 0; letter-spacing: -0.015em; }
+  .chat-head p { margin: 0; color: var(--muted); font-size: .9rem; }
+  .menu-btn { display: none; width: 40px; height: 40px; border: 1.5px solid var(--line); background: #fff; border-radius: 10px; align-items: center; justify-content: center; flex: none; }
+  .menu-btn svg { width: 20px; height: 20px; }
+
+  #messages { flex: 1; overflow-y: auto; padding: 18px 20px 8px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: flex; flex-direction: column; max-width: min(78%, 36rem); }
+  .msg.mine { align-self: flex-end; align-items: flex-end; }
+  .msg.theirs { align-self: flex-start; align-items: flex-start; }
+  .msg.grouped { margin-top: -10px; }
+  .meta { display: flex; align-items: baseline; gap: 10px; margin: 0 6px 4px; }
+  .name { background: none; border: 0; padding: 0; font-weight: 700; font-size: .92rem; }
+  button.name:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .time { font-size: .78rem; color: var(--muted); }
+  .line { display: flex; align-items: center; gap: 6px; }
+  .bubble { padding: 9px 14px; border-radius: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .theirs .bubble { background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .mine .bubble { background: var(--hl); color: var(--hl-ink); border-bottom-right-radius: 4px; }
+  .del { background: none; border: 0; color: var(--muted); font-size: .8rem; padding: 4px 6px; border-radius: 6px; opacity: 0; }
+  .msg:hover .del, .del:focus-visible { opacity: 1; }
+  .del:hover { color: var(--danger); background: rgba(179, 55, 43, .08); }
+  @media (hover: none) { .del { opacity: .7; } }
+
+  .empty { margin: auto; text-align: center; color: var(--muted); max-width: 30ch; }
+  .empty strong { display: block; font-family: var(--display); font-size: 1.25rem; color: var(--ink); margin-bottom: 4px; }
+
+  .composer { display: flex; align-items: flex-end; gap: 10px; padding: 12px 20px calc(14px + env(safe-area-inset-bottom)); }
+  .composer textarea {
+    flex: 1;
+    resize: none;
+    max-height: 140px;
+    padding: 11px 14px;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .composer textarea:focus { border-color: var(--board); outline: none; box-shadow: 0 0 0 3px rgba(30, 59, 51, .18); }
+  .send { padding: 11px 20px; border: 0; border-radius: 14px; background: var(--board); color: var(--chalk); font-weight: 700; }
+  .send:hover { background: var(--board-2); }
+  .send:disabled { opacity: .45; cursor: default; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px;
+    font-size: .92rem; max-width: 90vw; z-index: 50;
+  }
+
+  dialog { border: 0; border-radius: 16px; padding: 24px; width: min(92vw, 380px); box-shadow: 0 20px 50px -20px rgba(0, 0, 0, .5); }
+  dialog::backdrop { background: rgba(23, 33, 30, .55); }
+  dialog h3 { font-family: var(--display); font-size: 1.4rem; margin: 0 0 4px; }
+  dialog .row { display: flex; gap: 10px; margin-top: 18px; }
+  dialog .row button { flex: 1; padding: 11px; border-radius: 10px; font-weight: 700; border: 1.5px solid var(--line); background: #fff; }
+  dialog .row .go { background: var(--board); color: var(--chalk); border-color: var(--board); }
+
+  .scrim { display: none; }
+
+  @media (max-width: 820px) {
+    #auth-screen { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .board { padding: 32px 28px 36px; }
+    .board::after { inset: 10px; }
+    .wordmark { font-size: 3.6rem; }
+    #app { grid-template-columns: 1fr; }
+    .sidebar { position: fixed; inset: 0 auto 0 0; width: min(320px, 86vw); transform: translateX(-100%); transition: transform .2s ease; z-index: 30; }
+    body.nav-open .sidebar { transform: none; }
+    body.nav-open .scrim { display: block; position: fixed; inset: 0; background: rgba(23, 33, 30, .5); z-index: 25; }
+    .menu-btn { display: inline-flex; }
+    .msg { max-width: 88%; }
+    #messages, .composer, .chat-head { padding-left: 14px; padding-right: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
+</style>
+</head>
+<body>
+
+<!-- ================= SIGN IN / SIGN UP ================= -->
+<div id="auth-screen">
+  <section class="board" aria-hidden="false">
+    <h1 class="wordmark">Hallway</h1>
+    <svg class="squiggle" viewBox="0 0 320 18" fill="none" aria-hidden="true">
+      <path d="M3 11 C 28 2, 44 2, 64 10 S 104 18, 128 9 S 172 1, 196 10 S 240 18, 262 9 S 300 3, 317 9" stroke="#f7dc4a" stroke-width="4" stroke-linecap="round"/>
+    </svg>
+    <p>Text people at school. Your messages are saved, so nothing gets lost between classes.</p>
+  </section>
+
+  <section class="auth-side">
+    <div class="auth-card">
+      <div id="setup-banner" class="setup-banner" hidden>
+        <strong>One more step before this works.</strong> Open <code>index.html</code> in a text editor and paste your Firebase settings into <code>firebaseConfig</code> near the bottom of the file.
+      </div>
+      <h2 id="auth-title">Sign in</h2>
+      <p class="sub" id="auth-sub">Welcome back.</p>
+      <form id="auth-form" autocomplete="on">
+        <label for="username">Username</label>
+        <input id="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required>
+        <p class="hint" id="username-hint" hidden>3–20 letters, numbers or underscores. Pick a nickname, not your full name.</p>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" minlength="6" required>
+        <p class="hint" id="password-hint" hidden>At least 6 characters. There is no password reset, so remember it.</p>
+        <button class="btn-primary" id="auth-submit" type="submit">Sign in</button>
+        <p class="error" id="auth-error" role="alert"></p>
+      </form>
+      <p class="switch"><span id="switch-text">New here?</span> <button class="linkish" id="switch-btn" type="button">Create an account</button></p>
+    </div>
+  </section>
+</div>
+
+<!-- ================= CHAT APP ================= -->
+<div id="app" hidden>
+  <aside class="sidebar" id="sidebar" aria-label="Chats">
+    <div class="side-head"><div class="wordmark">Hallway</div></div>
+    <div class="side-scroll">
+      <div class="side-title">Rooms</div>
+      <div id="room-list"></div>
+      <div class="side-title">Direct messages</div>
+      <div id="dm-list"></div>
+      <p class="side-empty" id="dm-empty">No private chats yet.</p>
+      <button class="new-dm" id="new-dm" type="button">New message</button>
+    </div>
+    <div class="side-foot">
+      <span class="me" id="me-name"></span>
+      <button class="signout" id="signout" type="button">Sign out</button>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <header class="chat-head">
+      <button class="menu-btn" id="menu-btn" type="button" aria-label="Open chat list">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div>
+        <h2 id="chat-title"></h2>
+        <p id="chat-desc"></p>
+      </div>
+    </header>
+    <div id="messages" aria-live="polite"></div>
+    <form class="composer" id="composer">
+      <textarea id="composer-input" rows="1" maxlength="500" placeholder="Write a message" aria-label="Message"></textarea>
+      <button class="send" id="send-btn" type="submit" disabled>Send</button>
+    </form>
+  </main>
+</div>
+
+<dialog id="dm-dialog">
+  <form id="dm-form">
+    <h3>New message</h3>
+    <p class="hint" style="margin-top:0">Type the username of the person you want to text.</p>
+    <label for="dm-name">Username</label>
+    <input id="dm-name" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" maxlength="21">
+    <p class="error" id="dm-error" role="alert"></p>
+    <div class="row">
+      <button type="button" id="dm-cancel">Cancel</button>
+      <button type="submit" class="go">Start chat</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" hidden role="status"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    onAuthStateChanged, signOut, deleteUser
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    getFirestore, collection, doc, getDoc, query, where, orderBy, limit,
+    onSnapshot, serverTimestamp, writeBatch, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  /* ==========================================================
+     STEP 4 OF THE GUIDE: PASTE YOUR FIREBASE SETTINGS HERE.
+     Replace everything between the quotes with the values
+     Firebase gave you. Keep the quotes and commas.
+     ========================================================== */
+  const firebaseConfig = {
+    apiKey: "PASTE_YOUR_API_KEY",
+    authDomain: "PASTE_YOUR_AUTH_DOMAIN",
+    projectId: "PASTE_YOUR_PROJECT_ID",
+    storageBucket: "PASTE_YOUR_STORAGE_BUCKET",
+    messagingSenderId: "PASTE_YOUR_MESSAGING_SENDER_ID",
+    appId: "PASTE_YOUR_APP_ID"
+  };
+  /* ========================================================== */
+
+  /* The rooms everyone can chat in. (If you change these ids,
+     change them in firestore.rules too.) */
+  const ROOMS = [
+    { id: "general",  name: "General",       desc: "Anything goes, as long as it's kind." },
+    { id: "homework", name: "Homework help", desc: "Stuck on something? Ask here." },
+    { id: "random",   name: "Random",        desc: "Music, memes and lunch debates." }
+  ];
+
+  const EMAIL_DOMAIN = "hallway.example.com"; // never receives mail; just lets us use usernames
+  const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+
+  const $ = (s) => document.querySelector(s);
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  const ms = (ts) => (ts && ts.toMillis ? ts.toMillis() : Date.now());
+  function fmtTime(t) {
+    const d = new Date(t);
+    const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    if (d.toDateString() === new Date().toDateString()) return time;
+    return d.toLocaleDateString([], { month: "short", day: "numeric" }) + ", " + time;
+  }
+  function toast(msg) {
+    const t = $("#toast");
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => (t.hidden = true), 4000);
+  }
+  function friendlyError(e) {
+    const c = (e && e.code) || "";
+    if (c === "auth/email-already-in-use") return "That username is taken. Try another one.";
+    if (["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found", "auth/invalid-email"].includes(c)) return "Wrong username or password.";
+    if (c === "auth/weak-password") return "Your password needs at least 6 characters.";
+    if (c === "auth/too-many-requests") return "Too many tries. Wait a minute and try again.";
+    if (c === "auth/network-request-failed") return "No connection. Check your internet and try again.";
+    if (c === "auth/operation-not-allowed") return "Email/Password sign-in isn't turned on in Firebase yet (Step 5 of the guide).";
+    if (c === "permission-denied" || c === "firestore/permission-denied") return "Firebase blocked that. Check that your Firestore rules were published (Step 7 of the guide).";
+    return "Something went wrong. Try again.";
+  }
+
+  if (firebaseConfig.apiKey.startsWith("PASTE")) {
+    $("#setup-banner").hidden = false;
+    $("#auth-submit").disabled = true;
+    $("#switch-btn").disabled = true;
+  } else {
+    main();
+  }
+
+  function main() {
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let me = null;               // { uid, username }
+    let current = null;          // { type: 'room'|'dm', id, title, desc }
+    let convos = [];
+    const userCache = new Map(); // uid -> username
+    const loadingNames = new Set();
+    let unsubMsgs = null, unsubConvos = null;
+    let firstRender = true;
+    let pendingSignup = false;
+    let mode = "signin";
+    let lastSent = 0;
+
+    /* ---------- sign in / sign up screen ---------- */
+    function setMode(m) {
+      mode = m;
+      const up = m === "signup";
+      $("#auth-title").textContent = up ? "Create your account" : "Sign in";
+      $("#auth-sub").textContent = up ? "It takes about ten seconds." : "Welcome back.";
+      $("#auth-submit").textContent = up ? "Create account" : "Sign in";
+      $("#switch-text").textContent = up ? "Already have an account?" : "New here?";
+      $("#switch-btn").textContent = up ? "Sign in" : "Create an account";
+      $("#username-hint").hidden = !up;
+      $("#password-hint").hidden = !up;
+      $("#password").autocomplete = up ? "new-password" : "current-password";
+      $("#auth-error").textContent = "";
+    }
+    $("#switch-btn").addEventListener("click", () => setMode(mode === "signin" ? "signup" : "signin"));
+
+    $("#auth-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const err = $("#auth-error");
+      err.textContent = "";
+      const username = $("#username").value.trim().toLowerCase();
+      const password = $("#password").value;
+      if (!USERNAME_RE.test(username)) {
+        err.textContent = "Usernames are 3–20 characters: letters, numbers or underscores.";
+        return;
+      }
+      const email = `${username}@${EMAIL_DOMAIN}`;
+      const btn = $("#auth-submit");
+      btn.disabled = true;
+
+      if (mode === "signin") {
+        try { await signInWithEmailAndPassword(auth, email, password); }
+        catch (ex) { err.textContent = friendlyError(ex); }
+      } else {
+        pendingSignup = true;
+        let cred = null;
+        try {
+          cred = await createUserWithEmailAndPassword(auth, email, password);
+          const batch = writeBatch(db);
+          batch.set(doc(db, "users", cred.user.uid), { username, createdAt: serverTimestamp() });
+          batch.set(doc(db, "usernames", username), { uid: cred.user.uid });
+          await batch.commit();
+          me = { uid: cred.user.uid, username };
+          startApp();
+        } catch (ex) {
+          if (cred) { try { await deleteUser(cred.user); } catch {} }
+          err.textContent = friendlyError(ex);
+        } finally {
+          pendingSignup = false;
+        }
+      }
+      btn.disabled = false;
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (pendingSignup) return;
+      if (!user) { stopApp(); return; }
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (!snap.exists()) { await signOut(auth); return; }
+        me = { uid: user.uid, username: snap.data().username };
+        userCache.set(me.uid, me.username);
+        startApp();
+      } catch (ex) {
+        $("#auth-error").textContent = friendlyError(ex);
+      }
+    });
+
+    $("#signout").addEventListener("click", () => signOut(auth));
+
+    /* ---------- app start / stop ---------- */
+    function startApp() {
+      $("#auth-screen").hidden = true;
+      $("#app").hidden = false;
+      $("#me-name").textContent = "@" + me.username;
+      renderRooms();
+      unsubConvos?.();
+      const q = query(collection(db, "convos"), where("members", "array-contains", me.uid));
+      unsubConvos = onSnapshot(q, (snap) => {
+        convos = snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: "estimate" }) }));
+        convos.sort((a, b) => ms(b.lastAt) - ms(a.lastAt));
+        if (current && current.type === "dm") {
+          const c = convos.find((x) => x.id === current.id);
+          if (c) markSeen(c.id, ms(c.lastAt));
+        }
+        renderDMs();
+      }, () => {});
+      openChat({ type: "room", ...ROOMS[0] });
+    }
+
+    function stopApp() {
+      unsubMsgs?.(); unsubConvos?.();
+      unsubMsgs = unsubConvos = null;
+      me = null; current = null; convos = [];
+      $("#app").hidden = true;
+      $("#auth-screen").hidden = false;
+      $("#password").value = "";
+      document.body.classList.remove("nav-open");
+    }
+
+    /* ---------- "seen" tracking for the unread dot ---------- */
+    const seenKey = (id) => "hallway-seen-" + id;
+    function getSeen(id) { try { return Number(localStorage.getItem(seenKey(id))) || 0; } catch { return 0; } }
+    function markSeen(id, t) { try { localStorage.setItem(seenKey(id), String(t)); } catch {} }
+
+    /* ---------- sidebar ---------- */
+    function renderRooms() {
+      const box = $("#room-list");
+      box.replaceChildren();
+      for (const r of ROOMS) {
+        const b = el("button", "nav-item");
+        b.type = "button";
+        b.append(el("span", "nav-label", r.name));
+        if (current && current.type === "room" && current.id === r.id) b.classList.add("active");
+        b.addEventListener("click", () => openChat({ type: "room", ...r }));
+        box.append(b);
+      }
+    }
+
+    function renderDMs() {
+      const box = $("#dm-list");
+      box.replaceChildren();
+      $("#dm-empty").hidden = convos.length > 0;
+      for (const c of convos) {
+        const other = c.members.find((u) => u !== me.uid);
+        const name = userCache.get(other);
+        if (!name) loadName(other);
+        const b = el("button", "nav-item");
+        b.type = "button";
+        b.append(el("span", "nav-label", name ? "@" + name : "…"));
+        const isOpen = current && current.type === "dm" && current.id === c.id;
+        if (isOpen) b.classList.add("active");
+        else if (c.lastFrom !== me.uid && ms(c.lastAt) > getSeen(c.id)) {
+          const dot = el("span", "dot");
+          dot.setAttribute("role", "img");
+          dot.setAttribute("aria-label", "New messages");
+          b.append(dot);
+        }
+        b.addEventListener("click", () => openDM(other, userCache.get(other) || "someone"));
+        box.append(b);
+      }
+    }
+
+    async function loadName(uid) {
+      if (loadingNames.has(uid)) return;
+      loadingNames.add(uid);
+      try {
+        const s = await getDoc(doc(db, "users", uid));
+        if (s.exists()) { userCache.set(uid, s.data().username); renderDMs(); }
+      } catch {}
+    }
+
+    /* ---------- opening chats ---------- */
+    const dmId = (a, b) => [a, b].sort().join("_");
+
+    function openDM(otherUid, name) {
+      openChat({
+        type: "dm",
+        id: dmId(me.uid, otherUid),
+        name: "@" + name,
+        desc: "Only you and " + name + " can see this chat."
+      });
+    }
+
+    function msgCollection(t) {
+      return t.type === "room"
+        ? collection(db, "rooms", t.id, "messages")
+        : collection(db, "convos", t.id, "messages");
+    }
+
+    function openChat(target) {
+      unsubMsgs?.();
+      current = target;
+      firstRender = true;
+      if (target.type === "dm") {
+        const c = convos.find((x) => x.id === target.id);
+        markSeen(target.id, c ? ms(c.lastAt) : Date.now());
+      }
+      renderRooms();
+      renderDMs();
+      $("#chat-title").textContent = target.name;
+      $("#chat-desc").textContent = target.desc;
+      document.body.classList.remove("nav-open");
+      $("#messages").replaceChildren(el("div", "empty", "Loading messages…"));
+
+      const q = query(msgCollection(target), orderBy("createdAt", "desc"), limit(50));
+      unsubMsgs = onSnapshot(q, (snap) => renderMessages(snap.docs), (ex) => {
+        $("#messages").replaceChildren(el("div", "empty", friendlyError(ex)));
+      });
+      if (matchMedia("(hover: hover)").matches) $("#composer-input").focus();
+    }
+
+    /* ---------- messages ---------- */
+    function renderMessages(docs) {
+      const box = $("#messages");
+      const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 140;
+      box.replaceChildren();
+
+      const msgs = docs
+        .map((d) => ({ id: d.id, ...d.data({ serverTimestamps: "estimate" }) }))
+        .reverse();
+
+      if (!msgs.length) {
+        const e = el("div", "empty");
+        e.append(el("strong", null, "No messages yet"), document.createTextNode("Send the first one below."));
+        box.append(e);
+        return;
+      }
+
+      let prev = null;
+      for (const m of msgs) {
+        const t = ms(m.createdAt);
+        const mine = m.uid === me.uid;
+        const grouped = prev && prev.uid === m.uid && t - prev.t < 5 * 60 * 1000;
+
+        const row = el("div", "msg " + (mine ? "mine" : "theirs") + (grouped ? " grouped" : ""));
+        if (!grouped) {
+          const meta = el("div", "meta");
+          if (mine) {
+            meta.append(el("span", "name", "You"));
+          } else if (current.type === "room") {
+            const n = el("button", "name", m.username);
+            n.type = "button";
+            n.title = "Message @" + m.username;
+            n.addEventListener("click", () => startDM(m.username));
+            meta.append(n);
+          } else {
+            meta.append(el("span", "name", m.username));
+          }
+          meta.append(el("span", "time", fmtTime(t)));
+          row.append(meta);
+        }
+
+        const line = el("div", "line");
+        if (mine) {
+          const del = el("button", "del", "Delete");
+          del.type = "button";
+          del.setAttribute("aria-label", "Delete this message");
+          del.addEventListener("click", async () => {
+            try { await deleteDoc(doc(msgCollection(current), m.id)); }
+            catch (ex) { toast(friendlyError(ex)); }
+          });
+          line.append(del);
+        }
+        line.append(el("div", "bubble", m.text));
+        row.append(line);
+        box.append(row);
+        prev = { uid: m.uid, t };
+      }
+
+      if (firstRender || nearBottom || msgs[msgs.length - 1].uid === me.uid) {
+        box.scrollTop = box.scrollHeight;
+      }
+      firstRender = false;
+    }
+
+    /* ---------- sending ---------- */
+    const input = $("#composer-input");
+    const sendBtn = $("#send-btn");
+
+    function autosize() {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 140) + "px";
+      sendBtn.disabled = input.value.trim().length === 0;
+    }
+    input.addEventListener("input", autosize);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        $("#composer").requestSubmit();
+      }
+    });
+
+    $("#composer").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text || !current) return;
+      if (Date.now() - lastSent < 700) { toast("Slow down a little."); return; }
+      lastSent = Date.now();
+
+      const target = current;
+      input.value = "";
+      autosize();
+
+      const payload = { text, uid: me.uid, username: me.username, createdAt: serverTimestamp() };
+      try {
+        if (target.type === "room") {
+          const batch = writeBatch(db);
+          batch.set(doc(msgCollection(target)), payload);
+          await batch.commit();
+        } else {
+          const batch = writeBatch(db);
+          batch.set(doc(msgCollection(target)), payload);
+          batch.set(doc(db, "convos", target.id), {
+            members: target.id.split("_"),
+            lastText: text.slice(0, 80),
+            lastFrom: me.uid,
+            lastAt: serverTimestamp()
+          }, { merge: true });
+          await batch.commit();
+        }
+      } catch (ex) {
+        input.value = text;
+        autosize();
+        toast(friendlyError(ex));
+      }
+    });
+
+    /* ---------- new direct message ---------- */
+    const dlg = $("#dm-dialog");
+    $("#new-dm").addEventListener("click", () => {
+      $("#dm-name").value = "";
+      $("#dm-error").textContent = "";
+      dlg.showModal();
+      $("#dm-name").focus();
+    });
+    $("#dm-cancel").addEventListener("click", () => dlg.close());
+    $("#dm-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const ok = await startDM($("#dm-name").value, true);
+      if (ok) dlg.close();
+    });
+
+    async function startDM(raw, fromDialog = false) {
+      const name = raw.trim().toLowerCase().replace(/^@/, "");
+      const fail = (msg) => { fromDialog ? ($("#dm-error").textContent = msg) : toast(msg); return false; };
+      if (!USERNAME_RE.test(name)) return fail("Enter a valid username.");
+      if (name === me.username) return fail("That's you. Pick someone else.");
+      try {
+        const s = await getDoc(doc(db, "usernames", name));
+        if (!s.exists()) return fail("No one has the username @" + name + ".");
+        const uid = s.data().uid;
+        userCache.set(uid, name);
+        openDM(uid, name);
+        return true;
+      } catch (ex) {
+        return fail(friendlyError(ex));
+      }
+    }
+
+    /* ---------- mobile drawer ---------- */
+    $("#menu-btn").addEventListener("click", () => document.body.classList.add("nav-open"));
+    $("#scrim").addEventListener("click", () => document.body.classList.remove("nav-open"));
+  }
+</script>
+</body>
+</html>
